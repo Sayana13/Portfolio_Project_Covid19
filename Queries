@@ -1,0 +1,309 @@
+SELECT
+  *
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths`
+WHERE
+  continent IS NOT NULL
+ORDER BY
+  3,
+  4;
+SELECT
+  *
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_Vaccinations`
+WHERE
+  continent IS NOT NULL
+ORDER BY
+  3,
+  4;
+  
+  -- Select Data that we are going to be using
+
+SELECT
+  location,
+  date,
+  total_cases,
+  new_cases,
+  total_deaths,
+  population
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths`
+WHERE
+  continent IS NOT NULL
+ORDER BY
+  1,
+  2;
+  
+  -- Looking at Total Cases vs Total Deaths
+  -- Shows likelihood of dyung if you contract covid in your country
+
+SELECT
+  location,
+  date,
+  total_cases,
+  total_deaths,
+  (total_deaths / total_cases)*100 AS DeathPercentage
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths`
+WHERE
+  location LIKE '%States%'AND continent IS NOT NULL
+ORDER BY
+  1,
+  2;
+  
+  -- Looking at Total Cases vs Population
+  -- Shows what percentage of population got Covid
+
+SELECT
+  location,
+  date,
+  population,
+  total_cases,
+  (total_cases / population)*100 AS PercentPopulationInfected
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths`
+  --WHERE location like '%States%'
+WHERE
+  continent IS NOT NULL
+ORDER BY
+  1,
+  2;
+  
+  -- Looking at Countries with Highest Infection Rate compared to POpulation
+
+SELECT
+  location,
+  population,
+  MAX(total_cases) AS HighestInfectionCount,
+  MAX((total_cases / population))*100 AS PercentPopulationInfected
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths`
+WHERE
+  continent IS NOT NULL
+GROUP BY
+  location,
+  population
+ORDER BY
+  PercentPopulationInfected DESC;
+  
+  -- Showing Contries with Highest Deayh Counkt per Population
+
+SELECT
+  location,
+  MAX(total_deaths) AS TotalDeathCount
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths`
+  --WHERE location like '%States%'
+WHERE
+  continent IS NOT NULL
+GROUP BY
+  location
+ORDER BY
+  TotalDeathCount DESC;
+  
+  -- Let's break things down by continent
+
+SELECT
+  location,
+  MAX(total_deaths) AS TotalDeathCount
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths`
+  --WHERE location like '%States%'
+WHERE
+  continent IS NULL
+GROUP BY
+  location
+ORDER BY
+  TotalDeathCount DESC;
+ 
+ -- Only continents. Showing continents with the highest death count per population
+
+SELECT
+  continent,
+  MAX(total_deaths) AS TotalDeathCount
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths`
+  --WHERE location like '%States%'
+WHERE
+  continent IS NOT NULL
+GROUP BY
+  continent
+ORDER BY
+  TotalDeathCount DESC;
+  
+  -- Global Numbers
+
+SELECT
+  date,
+  SUM(new_cases) AS total_cases,
+  SUM(new_deaths) AS total_deaths,
+  SUM(new_deaths) / SUM(new_cases) * 100 AS DeathPercentage
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths`
+  --WHERE location like '%States%'
+WHERE
+  continent IS NOT NULL
+GROUP BY
+  date
+ORDER BY
+  1,
+  2;
+  
+  -- DeathPercentage across the world
+
+SELECT
+  SUM(new_cases) AS total_cases,
+  SUM(new_deaths) AS total_deaths,
+  SUM(new_deaths) / SUM(new_cases) * 100 AS DeathPercentage
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths`
+  --WHERE location like '%States%'
+WHERE
+  continent IS NOT NULL
+  --GROUP BY date
+ORDER BY
+  1,
+  2;
+  
+  -- Joined Two Tables
+
+SELECT
+  *
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths` dea
+JOIN
+  `strong-host-338001.Portfolio_Project.Covid_Vaccinations` vac
+ON
+  dea.location = vac.location
+  AND dea.date = vac.date;
+  -- Looking at Total Population vs Vaccinations
+SELECT
+  dea.continent,
+  dea.location,
+  dea.date,
+  dea.population,
+  vac.new_vaccinations
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths` dea
+JOIN
+  `strong-host-338001.Portfolio_Project.Covid_Vaccinations` vac
+ON
+  dea.location = vac.location
+  AND dea.date = vac.date
+WHERE
+  dea.continent IS NOT NULL
+ORDER BY
+  2,
+  3;
+ 
+ -- It will be adding total of vaccinations
+
+SELECT
+  dea.continent,
+  dea.location,
+  dea.date,
+  dea.population,
+  vac.new_vaccinations,
+  SUM(CAST (vac.new_vaccinations AS int)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths` dea
+JOIN
+  `strong-host-338001.Portfolio_Project.Covid_Vaccinations` vac
+ON
+  dea.location = vac.location
+  AND dea.date = vac.date
+WHERE
+  dea.continent IS NOT NULL
+ORDER BY
+  2,
+  3;
+  
+  -- USE CTE (A common table expression)
+
+WITH
+  PopvsVac AS (
+  SELECT
+    dea.continent,
+    dea.location,
+    dea.date,
+    dea.population,
+    vac.new_vaccinations,
+    SUM(CAST (vac.new_vaccinations AS int)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+  FROM
+    `strong-host-338001.Portfolio_Project.Covid_deaths` dea
+  JOIN
+    `strong-host-338001.Portfolio_Project.Covid_Vaccinations` vac
+  ON
+    dea.location = vac.location
+    AND dea.date = vac.date
+  WHERE
+    dea.continent IS NOT NULL
+    --ORDER BY 2, 3;
+    )
+SELECT
+  *,
+  (RollingPeopleVaccinated/population)
+FROM
+  PopvsVac;
+  
+  -- TEMP Table
+
+DROP TABLE IF EXISTS
+  Portfolio_Project.PercentPopVaccinated;
+CREATE TABLE
+  Portfolio_Project.PercentPopVaccinated ( continent string,
+    location string,
+    date date,
+    population numeric,
+    new_vaccinations numeric,
+    RollingPeopleVaccinated numeric );
+INSERT INTO
+  `strong-host-338001.Portfolio_Project.PercentPopVaccinated`
+SELECT
+  dea.continent,
+  dea.location,
+  dea.date,
+  dea.population,
+  vac.new_vaccinations,
+  SUM(CAST (vac.new_vaccinations AS int)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths` dea
+JOIN
+  `strong-host-338001.Portfolio_Project.Covid_Vaccinations` vac
+ON
+  dea.location = vac.location
+  AND dea.date = vac.date
+WHERE
+  dea.continent IS NOT NULL;
+  --ORDER BY 2, 3;
+
+SELECT
+  *,
+  (RollingPeopleVaccinated/population)
+FROM
+  `strong-host-338001.Portfolio_Project.PercentPopVaccinated`;
+  
+  -- Creating View to store data for later visualizations
+
+CREATE VIEW IF NOT EXISTS
+  `strong-host-338001.Portfolio_Project.PercentPopVaccinated` AS
+SELECT
+  dea.continent,
+  dea.location,
+  dea.date,
+  dea.population,
+  vac.new_vaccinations,
+  SUM(CAST (vac.new_vaccinations AS int)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+FROM
+  `strong-host-338001.Portfolio_Project.Covid_deaths` dea
+JOIN
+  `strong-host-338001.Portfolio_Project.Covid_Vaccinations` vac
+ON
+  dea.location = vac.location
+  AND dea.date = vac.date
+WHERE
+  dea.continent IS NOT NULL;
+SELECT
+  *
+FROM
+  `strong-host-338001.Portfolio_Project.PercentPopVaccinated`
